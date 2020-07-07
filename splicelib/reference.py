@@ -5,7 +5,7 @@ from itertools import groupby, count
 
 import numpy as np
 import pandas as pd
-from pyfaidx import Fasta
+from pyfaidx import Fasta, FastaRecord
 from Bio import SeqIO
 from ncls import NCLS
 
@@ -31,16 +31,8 @@ class Reference:
 
     def __init__(self,
                  assembly: t.Union[Path, str],
-                 annotations: t.Union[Path, str],
-                 low_memory: bool = True):
-        # read assembly; store assembly in memory if low_memory is false
-        if low_memory:
-            self.assembly: t.Mapping[str, str] = Fasta(assembly, rebuild=False)
-        else:
-            self.assembly: t.Mapping[str, str] = {
-                seq.id: str(seq.seq)
-                for seq in SeqIO.parse(assembly, format='fasta')
-            }
+                 annotations: t.Union[Path, str]):
+        self.assembly: t.Mapping[str, FastaRecord] = Fasta(assembly, rebuild=False)
         # parse annotations
         try:
             annotations = (
