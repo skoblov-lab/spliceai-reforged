@@ -19,7 +19,22 @@ def one_hot_encode(seq: str) -> np.ndarray:
     :return: an encoded sequence
     """
     translated = seq.upper().translate(BASE_TRANSLATION).encode()
+    # the % 5 is here to map any non-"ATGCN" base to 0 (the mapping for N)
     return BASE_MAP[np.frombuffer(translated, np.int8) % 5]
+
+
+def format_chromosome(long: bool, chrom: str) -> str:
+    """
+    Ensure a chromosome identifier is formatted the right way (long or short)
+    :param long: if True, enforce long formatting, e.g. 'chr1' instead of '1'
+    :param chrom: a chromosome identifier
+    :return:
+    """
+    return (
+        chrom.lstrip('chr') if not long else
+        chrom if chrom.startswith('chr') and long else
+        'chr' + chrom
+    )
 
 
 if __name__ == '__main__':

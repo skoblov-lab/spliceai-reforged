@@ -15,6 +15,8 @@ class Reference:
     Reference assembly and annotation.
     Assembly attributes:
         assembly - a mapping from chromosome identifiers to chromosome sequences
+        long_chrom - True when reference assembly and annotations use long chromosome
+            notation format, e.g. "chr1" instead of "1"
     Annotation attributes:
         genes - a numpy array of gene names
         chroms - a numpy array of corresponding chromosome identifiers
@@ -64,8 +66,15 @@ class Reference:
             ]
         except (KeyError, TypeError, ValueError):
             raise ValueError('incompatible formatting in annotations')
-        # create annotation indices: one per chromosome
-
+        # make sure reference assembly and annotations have the same chromosome
+        # notation style
+        asm_has_chrom = any(chrom.startswith('chr') for chrom in self.assembly)
+        anno_has_chrom = any(chrom.startswith('chr') for chrom in self.chroms)
+        if asm_has_chrom != anno_has_chrom:
+            raise ValueError('reference assembly and annotations have different'
+                             'chromosome notation format')
+        self.long_chrom = asm_has_chrom
+        # create annotation indices: one per chromosome;
         # adding 1 to tx_ends to simulate end-inclusive indexing behaviour
         # during intersection lookups in NCLS;
         # count(0) is there to count indices
