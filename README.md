@@ -1,2 +1,2 @@
 # spliceai-reforged
-Another implementation of SpliceAI
+A faster implementation of SpliceAI
