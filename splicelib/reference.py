@@ -15,7 +15,7 @@ class Reference:
     Reference assembly and annotation.
     Assembly attributes:
         assembly - a mapping from chromosome identifiers to chromosome sequences
-    Annotations attributes:
+    Annotation attributes:
         genes - a numpy array of gene names
         chroms - a numpy array of corresponding chromosome identifiers
         strands - a numpy array of corresponding strand labels ("+" or "-")
@@ -51,7 +51,10 @@ class Reference:
             self.tx_starts = annotations['TX_START'].to_numpy()
             self.tx_ends = annotations['TX_END'].to_numpy()
             self.exon_starts = [
-                # TODO why the + 1 ?
+                # TODO the +1 here is specific for GENCODE annotations: GENCODE
+                #      EXON_START is actually the last intron position, so +1
+                #      moves that to the first exon position. We might want to
+                #      modify bundled annotation files to account to this
                 np.asarray([int(i) for i in c.split(',') if i]) + 1
                 for c in annotations['EXON_START'].to_numpy()
             ]
@@ -68,8 +71,7 @@ class Reference:
         # count(0) is there to count indices
         records = zip(self.chroms, self.tx_starts, self.tx_ends+1, count(0))
 
-        def extract_intervals(group: t.Iterable[t.Tuple[str, int, int, int]]) -> \
-                t.Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        def extract_intervals(group: t.Iterable[t.Tuple[str, int, int, int]]):
             """
             Given a group (an iterable) of records, each containing a
             chromosome, a gene's start and end coordinates (1-based) and its
@@ -77,17 +79,15 @@ class Reference:
             self.tx_starts, ...), return starts coordinates, end coordinates and
             feature indices as three numpy arrays
             """
-            starts, stops, idxs = map(
-                np.array, zip(*map(op.itemgetter(1, 2, 3), group))
-            )
-            return starts, stops, idxs
+            starts, stops, idxs = zip(*map(op.itemgetter(1, 2, 3), group))
+            return np.array(starts), np.array(stops), np.array(idxs)
 
         self._indices = {
             chrom: NCLS(*extract_intervals(group))
             for chrom, group in groupby(records, key=op.itemgetter(0))
         }
 
-    def feature_indices(self, chrom: str, pos: int):
+    def feature_indices(self, chrom: str, pos: int) -> t.List[int]:
         """
         Return indices of genes covering the position
         :param chrom: a chromosome identifier
@@ -95,19 +95,17 @@ class Reference:
         :return:
         """
         intervals = self._indices[chrom]
-        return np.array([
-            iv[-1] for iv in intervals.find_overlap(pos, pos)
-        ])
+        return [iv[-1] for iv in intervals.find_overlap(pos, pos)]
 
-    def feature_distances(self, idx: int, pos: int):
+    def feature_distances(self, idx: int, pos: int) -> t.Tuple[int, int, int]:
         """
         :param idx: feature index
         :param pos: 1-based position on the feature's chromosome
-        :return: distance to gene start, distance to gene end, distance to the
-        closest exon boundary
+        :return: distance to transcript start, distance to transcript end,
+        distance to the closest exon boundary
         """
-        dist_tx_start = self.tx_starts[idx]-pos
-        dist_tx_end = self.tx_ends[idx]-pos
+        dist_tx_start = self.tx_starts[idx] - pos
+        dist_tx_end = self.tx_ends[idx] - pos
         dist_exon_boundary = min(
             np.union1d(self.exon_starts[idx], self.exon_ends[idx]) - pos,
             key=abs
