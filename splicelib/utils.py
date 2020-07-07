@@ -15,12 +15,11 @@ def one_hot_encode(seq: str) -> np.ndarray:
     sequence `x`, `x[:, ::-1, ::-1]` produces the encoding for its
     reverse-complement.
     :param seq: a nucleotide sequence; supported characters (case-insensitive):
-    N, A, C, G, T; any other character is mapped the same way as N.
+    N, A, C, G, T
     :return: an encoded sequence
     """
     translated = seq.upper().translate(BASE_TRANSLATION).encode()
-    # the % 5 is here to map any non-"ATGCN" base to 0 (the mapping for N)
-    return BASE_MAP[np.frombuffer(translated, np.int8) % 5]
+    return BASE_MAP[np.frombuffer(translated, np.int8)]
 
 
 def format_chromosome(long: bool, chrom: str) -> str:
