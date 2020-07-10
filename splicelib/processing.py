@@ -1,20 +1,23 @@
 import typing as t
+import operator as op
+from itertools import chain, groupby
 
 import numpy as np
 from pysam import VariantRecord
 
+from tensorflow.keras.models import Model
 from splicelib.reference import Reference
 from splicelib.utils import one_hot_encode, format_chromosome
 
 
-PreprocessedRecord = t.NamedTuple('PreprocessedRecord', [
+PreprocessedAllele = t.NamedTuple('PreprocessedAllele', [
     ('ref', str), ('alt', str), ('gene', str), ('strand', str),
     ('d_exon_boundary', int), ('x_ref', np.ndarray), ('x_alt', np.ndarray)
 ])
 
 
 def preprocess(reference: Reference, dist_var: int, record: VariantRecord) \
-        -> t.Tuple[t.List[PreprocessedRecord], t.Optional[str]]:
+        -> t.Tuple[t.List[PreprocessedAllele], t.Optional[str]]:
     """
     Preprocess a variant record.
     This function is heavily based on `get_delta_scores` from the original
@@ -96,7 +99,7 @@ def preprocess(reference: Reference, dist_var: int, record: VariantRecord) \
             if strand == '-':
                 x_ref = x_ref[::-1, ::-1]
                 x_alt = x_alt[::-1, ::-1]
-            preprocessed_record = PreprocessedRecord(
+            preprocessed_record = PreprocessedAllele(
                 record.ref, alt, gene, strand, d_exon_boundary, x_ref, x_alt
             )
             preprocessed_records.append(preprocessed_record)
@@ -124,8 +127,10 @@ def postprocess(dist_var: int, mask: bool, ref: str, alt: str, gene: str,
     :param gene: gene name
     :param strand: strand label ('+' or '-')
     :param d_exon_boundary: distance to the closest annotated exon boundary
-    :param y_ref: predictions for the reference sequence
-    :param y_alt: predictions fpr the alternative sequence
+    :param y_ref: predictions for the reference sequence, shape (npos, 3), where
+    npos depends on dist_var
+    :param y_alt: predictions fpr the alternative sequence, shape (npos, 3), where
+    npos depends on dist_var and the length of alternative allele;
     :return: prediction formatted as a VCF INFO record formatted as
     'ALLELE|SYMBOL|DS_AG|DS_AL|DS_DG|DS_DL|DP_AG|DP_AL|DP_DG|DP_DL', where
     DS_* are delta scores for acceptor gain (AG), acceptor loss (AL), donor
@@ -136,6 +141,9 @@ def postprocess(dist_var: int, mask: bool, ref: str, alt: str, gene: str,
     len_ref = len(ref)
     len_alt = len(alt)
     len_del = max(len_ref - len_alt, 0)  # deletion length
+    # add a dimension to predictions
+    y_ref = y_ref[None, :, :]
+    y_alt = y_alt[None, :, :]
     # reverse predicted sequence if strand == '-'; this action mirrors the
     # calculation of reverse-complement from `preprocess`
     if strand == '-':
@@ -190,6 +198,84 @@ def postprocess(dist_var: int, mask: bool, ref: str, alt: str, gene: str,
         idx_pd - cov // 2,
         idx_nd - cov // 2
     )
+
+
+def annotate(reference: Reference, models: t.List[Model], batch_size: int,
+             dist_var: int, mask: bool, variants: t.List[VariantRecord]) \
+        -> t.List[t.Tuple[t.List[str], t.Optional[str]]]:
+    """
+    Calculate SpliceAI annotations for list of variants. Annotations are VCF
+    info records formatted as
+    'ALLELE|SYMBOL|DS_AG|DS_AL|DS_DG|DS_DL|DP_AG|DP_AL|DP_DG|DP_DL', where
+    DS_* are delta scores for acceptor gain (AG), acceptor loss (AL), donor
+    gain (DG) and donor loss (DL); DP_* are corresponding positions; the scores
+    are rounded to 2 digits.
+    :param reference: a reference assembly and annotation
+    :param models: SpliceAI models
+    :param batch_size: inference batch size for SpliceAI models
+    :param dist_var: maximum distance between the variant and gained/lost splice
+    site
+    :param mask: mask scores representing annotated acceptor/donor gain and
+    unannotated acceptor/donor loss
+    :param variants: a list of variants to annotate
+    :return: for each variant we return a list of SpliceAI annotations and an
+    optional log message
+    """
+
+    # preprocess generates a list of PreprocessedAllele objects for every
+    # variant
+    preprocessed = [preprocess(reference, dist_var, var) for var in variants]
+    # we need to flatten this list while keeping track of original positions to
+    # reconstruct the nested structure later on
+    flattened = list(chain.from_iterable(
+        [(i, rec) for rec in recs] for i, (recs, _) in enumerate(preprocessed)
+    ))
+    # alternative sequence have variable length; since Keras models require an
+    # array as their input, we will have to sort and group preprocessed alleles
+    # by the length of their allele sequences to create valid batches for the
+    # models
+    length_sorted = sorted(flattened, key=lambda x: x[1].x_alt.shape[0])
+    length_groups = groupby(length_sorted, lambda x: x[1].x_alt.shape[0])
+    # at this point we can drop indices, becase the ordering will be consistent
+    # with `alt_length_sorted`
+    length_batches = [list(map(op.itemgetter(1), grp)) for _, grp in length_groups]
+    # extract x_ref and x_alt from each batch
+    x_ref_batches = [
+        np.asarray([rec.x_ref for rec in batch]) for batch in length_batches
+    ]
+    x_alt_batches = [
+        np.asarray([rec.x_alt for rec in batch]) for batch in length_batches
+    ]
+
+    def predict_batch(batch: np.ndarray) -> np.ndarray:
+        # make prediction with each model
+        predictions = [model.predict(batch, batch_size) for model in models]
+        # calculate average prediction across models
+        return np.mean(predictions, axis=0)
+
+    y_ref_batches = [predict_batch(batch) for batch in x_ref_batches]
+    y_alt_batches = [predict_batch(batch) for batch in x_alt_batches]
+
+    # flatten predictions and perform post-processing
+    y_ref: t.List[np.ndarray] = list(chain.from_iterable(y_ref_batches))
+    y_alt: t.List[np.ndarray] = list(chain.from_iterable(y_alt_batches))
+
+    annotations = [
+        (i, postprocess(dist_var, mask, pre.ref, pre.alt, pre.gene, pre.strand,
+                        pre.d_exon_boundary, ref, alt))
+        for (i, pre), ref, alt in zip(length_sorted, y_ref, y_alt)
+    ]
+    # group annotations by indices and create a lookup table
+    annotations_sorted = sorted(annotations, key=op.itemgetter(0))
+    annotations_lookup = {
+        i: list(map(op.itemgetter(1), grp))
+        for i, grp in groupby(annotations_sorted, key=op.itemgetter(0))
+    }
+    messages = map(op.itemgetter(1), preprocessed)
+    # messages are sorted the same way as input variants, so we can simply
+    # iterate enumerate(messages) to get corresponding annotations
+    return [(annotations_lookup.get(i, []), message)
+            for i, message in enumerate(messages)]
 
 
 if __name__ == '__main__':
