@@ -6,7 +6,6 @@ from itertools import groupby, count
 import numpy as np
 import pandas as pd
 from pyfaidx import Fasta, FastaRecord
-from Bio import SeqIO
 from ncls import NCLS
 
 
@@ -20,7 +19,7 @@ class Reference:
     Annotation attributes:
         genes - a numpy array of gene names
         chroms - a numpy array of corresponding chromosome identifiers
-        strands - a numpy array of corresponding strand labels ("+" or "-")
+        strands - a numpy array of corresponding strand labels ('+' or '-')
         tx_starts - a numpy array of corresponding pre-mRNA transcript starts (1-based)
         tx_ends - a numpy array of corresponding pre-mRNA transcript ends (1-based)
         exon_starts - a list of numpy arrays with corresponding exon start positions (1-based)
@@ -60,7 +59,7 @@ class Reference:
             raise ValueError('incompatible formatting in annotations')
         # make sure reference assembly and annotations have the same chromosome
         # notation style
-        asm_has_chrom = any(chrom.startswith('chr') for chrom in self.assembly)
+        asm_has_chrom = any(chrom.startswith('chr') for chrom in self.assembly.keys())
         anno_has_chrom = any(chrom.startswith('chr') for chrom in self.chroms)
         if asm_has_chrom != anno_has_chrom:
             raise ValueError('reference assembly and annotations have different'
