@@ -1,6 +1,8 @@
 import typing as t
 import operator as op
 from itertools import chain, groupby
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 import numpy as np
 from pysam import VariantRecord
@@ -200,8 +202,9 @@ def postprocess(dist_var: int, mask: bool, ref: str, alt: str, gene: str,
     )
 
 
-def annotate(reference: Reference, models: t.List[Model], batch_size: int,
-             dist_var: int, mask: bool, variants: t.List[VariantRecord]) \
+def annotate(nthreads: int, reference: Reference, models: t.List[Model],
+             batch_size: int, dist_var: int, mask: bool,
+             variants: t.List[VariantRecord]) \
         -> t.List[t.Tuple[t.List[str], t.Optional[str]]]:
     """
     Calculate SpliceAI annotations for list of variants. Annotations are VCF
@@ -210,9 +213,16 @@ def annotate(reference: Reference, models: t.List[Model], batch_size: int,
     DS_* are delta scores for acceptor gain (AG), acceptor loss (AL), donor
     gain (DG) and donor loss (DL); DP_* are corresponding positions; the scores
     are rounded to 2 digits.
+    :param nthreads: the number of CPU threads to use for preprocessing; if
+    the reference assembly is stored on a fast-access drive (e.g. an SSD or a
+    RAM-disk) using several CPU threads significantly cuts down preprocessing
+    time (there is a sizeable improvement up to 4-6 threads with a reference
+    stored on an NVME SSD); if the reference is stored on a conventional
+    magnetic hard-drive, using multiple threads actually harms performance
     :param reference: a reference assembly and annotation
     :param models: SpliceAI models
-    :param batch_size: inference batch size for SpliceAI models
+    :param batch_size: inference batch size for SpliceAI models; adapt this
+    for your GPU(s)
     :param dist_var: maximum distance between the variant and gained/lost splice
     site
     :param mask: mask scores representing annotated acceptor/donor gain and
@@ -221,10 +231,13 @@ def annotate(reference: Reference, models: t.List[Model], batch_size: int,
     :return: for each variant we return a list of SpliceAI annotations and an
     optional log message
     """
-
-    # preprocess generates a list of PreprocessedAllele objects for every
-    # variant
-    preprocessed = [preprocess(reference, dist_var, var) for var in variants]
+    # preprocess generates a list of PreprocessedAllele objects and an
+    # optional logging message for every variant
+    if nthreads > 1:
+        with ThreadPoolExecutor(nthreads) as workers:
+            preprocessed = list(workers.map(partial(preprocess, reference, dist_var), variants))
+    else:
+        preprocessed = [preprocess(reference, dist_var, var) for var in variants]
     # we need to flatten this list while keeping track of original positions to
     # reconstruct the nested structure later on
     flattened = list(chain.from_iterable(
