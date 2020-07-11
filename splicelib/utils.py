@@ -1,3 +1,6 @@
+import typing as t
+from itertools import islice, takewhile, repeat
+
 import numpy as np
 
 BASE_TRANSLATION = str.maketrans('NACGT', '\x00\x01\x02\x03\x04')
@@ -6,6 +9,8 @@ BASE_MAP = np.asarray([[0, 0, 0, 0],
                        [0, 1, 0, 0],
                        [0, 0, 1, 0],
                        [0, 0, 0, 1]])
+
+A = t.TypeVar('A')
 
 
 def one_hot_encode(seq: str) -> np.ndarray:
@@ -34,6 +39,17 @@ def format_chromosome(long: bool, chrom: str) -> str:
         chrom if chrom.startswith('chr') and long else
         'chr' + chrom
     )
+
+
+def iterate_batches(n: int, iterable: t.Iterable[A]) -> t.Iterator[t.List[A]]:
+    """
+    Slice an iterable into chunks of n elements
+    :param n: batch size
+    :param iterable: an iterable
+    :return: Iterator
+    """
+    iterator = iter(iterable)
+    return takewhile(bool, (list(islice(iterator, n)) for _ in repeat(None)))
 
 
 if __name__ == '__main__':

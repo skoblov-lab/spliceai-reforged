@@ -216,7 +216,7 @@ def annotate(nthreads: int, reference: Reference, models: t.List[Model],
     :param nthreads: the number of CPU threads to use for preprocessing; if
     the reference assembly is stored on a fast-access drive (e.g. an SSD or a
     RAM-disk) using several CPU threads significantly cuts down preprocessing
-    time (there is a sizeable improvement up to 4-6 threads with a reference
+    time (there is a sizeable improvement up to 4 threads with a reference
     stored on an NVME SSD); if the reference is stored on a conventional
     magnetic hard-drive, using multiple threads actually harms performance
     :param reference: a reference assembly and annotation
