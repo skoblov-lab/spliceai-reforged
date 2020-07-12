@@ -1,6 +1,20 @@
 # spliceai-reforged
 Another implementation of SpliceAI. This one is designed to better utilise GPU-parallelism than the [original implementation](https://github.com/Illumina/SpliceAI). Trained models were taken directly from the original implementation, so you are going to get the same predictions with this implementation. It only makes sense to use this implementation if you are planning to use a GPU to predict a lot of variants. If you are going to use this implementation in your research, don't forget to reference the original paper [Jaganathan et al, Cell 2019 in press](https://doi.org/10.1016/j.cell.2018.12.015).
 
+## Installation
+
+Although we've added an automatic `pip` installer that grabs all the required dependencies, the best way to install `spliceai-reforged` is to create a new conda environment and grab dependencies from conda repositories rather than pip's repository. The following instructions assume you are planning to use a GPU. If that's not the case, replace `tensorflow-gpu` with `tensorflow` (though in that case you might as well use the original implementation).
+
+```
+$ conda create -y -n spliceai numpy pandas tensorflow-gpu=2.2 click
+$ conda activate spliceai
+$ conda install -c bioconda pysam pyfaidx ncls
+$ pip install --no-cache-dir git+https://github.com/skoblov-lab/spliceai-reforged.git
+```
+You can run use `spliceai.py`
+
+## Usage help
+
 ```
 Usage: spliceai.py [OPTIONS]
 
