@@ -6,7 +6,7 @@ Another implementation of SpliceAI. This one is designed to better utilise GPU-p
 Although we've added an automatic `pip` installer that grabs all the required dependencies, the best way to install `spliceai-reforged` is to create a new conda environment and grab dependencies from conda repositories rather than pip's repository. The following instructions assume you are planning to use a GPU. If that's not the case, replace `tensorflow-gpu` with `tensorflow` (though in that case you might as well use the original implementation).
 
 ```
-$ conda create -y -n spliceai numpy pandas tensorflow-gpu=2.2 click
+$ conda create -y -n spliceai python=3.7 numpy pandas tensorflow-gpu=2.2 click
 $ conda activate spliceai
 $ conda install -c bioconda pysam pyfaidx ncls
 $ pip install --no-cache-dir git+https://github.com/skoblov-lab/spliceai-reforged.git
