@@ -1,5 +1,5 @@
 # spliceai-reforged
-Another implementation of SpliceAI. This one is designed to better utilise GPU-parallelism than the [original implementation](https://github.com/Illumina/SpliceAI). Trained models were taken directly from the original implementation, so you are going to get the same predictions with this implementation. It only makes sense to use this implementation if you are planning to use a GPU to predict a lot of variants. If you are going to use this implementation in you research, don't forget to reference the original paper [Jaganathan et al, Cell 2019 in press](https://doi.org/10.1016/j.cell.2018.12.015).
+Another implementation of SpliceAI. This one is designed to better utilise GPU-parallelism than the [original implementation](https://github.com/Illumina/SpliceAI). Trained models were taken directly from the original implementation, so you are going to get the same predictions with this implementation. It only makes sense to use this implementation if you are planning to use a GPU to predict a lot of variants. If you are going to use this implementation in your research, don't forget to reference the original paper [Jaganathan et al, Cell 2019 in press](https://doi.org/10.1016/j.cell.2018.12.015).
 
 ```
 Usage: spliceai.py [OPTIONS]
