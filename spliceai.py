@@ -1,3 +1,4 @@
+import os
 import typing as t
 import logging
 from pathlib import Path
@@ -16,18 +17,16 @@ try:
 except ImportError:
     import importlib_resources as resources
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # FATAL
+logging.getLogger('tensorflow').setLevel(logging.FATAL)
 
+# N_VISIBLE_GPUS = len(tf.config.experimental.list_physical_devices('GPU'))
 ANNOTATIONS = {
     'grch37': resources.path(builtin_annotations, 'grch37.txt'),
     'grch38': resources.path(builtin_annotations, 'grch38.txt')
 }
 
 
-# TODO multi-gpu mode
-# # determine, whether there are any GPUs available
-# gpus = tf.config.experimental.list_physical_devices('GPU')
-# ngpus = len(gpus)
-# # load models in multi-gpu mode if GPUs are available
 def load_models() -> t.List[Model]:
     models_ = []
     for i in range(1, 6):
@@ -50,23 +49,23 @@ def load_models() -> t.List[Model]:
                    'or a RAM-disk). Chromosome identifiers in the assembly '
                    'must follow the same notation format as chromosome values in '
                    'the annotation file. Built-in annotations use short-format '
-                   'chromosome notations (that is there are no "chr" prefixes '
+                   'chromosome notation (that is there are no "chr" prefixes '
                    'in chromosome identifiers).')
 @click.option('-a', '--annotations', required=True, type=str,
-              help='Reference genome annotations. You can specify a path to '
+              help='Reference genome annotation. You can specify a path to '
                    'an annotation file or specify one of built-in annotations: '
-                   '"grch37" and "grch38". An annotation file must contain the '
+                   '"grch37" or "grch38". An annotation file must contain the '
                    'following columns: #NAME (gene name), CHROM (chromosome), '
                    'STRAND, TX_START (transcript start), TX_END (transcript end) '
                    'EXON_START (exon start positions), EXON_END (exon end '
                    'positions). The values in CHROM must follow the same '
                    'chromosome naming format as sequence identifiers in '
                    'the reference assembly. Built-in annotations use '
-                   'short-format chromosome notations (that is there are no '
+                   'short-format chromosome notation (that is there are no '
                    '"chr" prefixes in chromosome identifiers). TX_START and '
-                   'TX_END are use 1-based indexing, end positions are '
+                   'TX_END use 1-based indexing, end positions are '
                    'inclusive. EXON_START and EXON_END are comma-separated '
-                   'lists of corresponding exon start and end location. We '
+                   'lists of corresponding exon start and end locations. We '
                    'use GENCODE annotations, wherein EXON_START values point to '
                    'the last intron position right next to an exon. Your custom '
                    'annotation files must follow the same conventions. '
@@ -81,7 +80,7 @@ def load_models() -> t.List[Model]:
 @click.option('--preprocessing_threads', default=1,
               type=click.IntRange(1, 4, clamp=True),
               help='The number of preprocessing threads to use. If your '
-                   'reference sequence is located on a fast-access drive '
+                   'reference assembly is located on a fast-access drive '
                    '(an SSD or a RAM-disk), using up to 4 preprocessing '
                    'threads significantly cuts down preprocessing time. '
                    'Defaults to 1.')
@@ -94,7 +93,7 @@ def load_models() -> t.List[Model]:
 @click.option('--prediction_batch', default=64,
               type=click.IntRange(1, None, clamp=True),
               help='The batch size to use during inference. This option is '
-                   'useful if you are using a GPU and want to use its full '
+                   'useful if you are using a GPU and want to exploit its full '
                    'potential. It is best to use powers of 2. If you are '
                    'getting out of memory errors, you should reduce the '
                    'batch size. Defaults to 64')
