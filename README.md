@@ -8,7 +8,7 @@ Although we've added an automatic `pip` installer that grabs all the required de
 ```
 $ conda create -y -n spliceai python=3.7 numpy pandas tensorflow-gpu=2.2 click
 $ conda activate spliceai
-$ conda install -c bioconda pysam pyfaidx ncls
+$ conda install -y -c bioconda pysam pyfaidx ncls
 $ pip install --no-cache-dir git+https://github.com/skoblov-lab/spliceai-reforged.git
 ```
 You can run use `spliceai.py`
