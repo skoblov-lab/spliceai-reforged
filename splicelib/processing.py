@@ -105,10 +105,7 @@ def preprocess(reference: Reference, dist_var: int, record: VariantRecord) \
                 record.ref, alt, gene, strand, d_exon_boundary, x_ref, x_alt
             )
             preprocessed_records.append(preprocessed_record)
-    return (
-        (preprocessed_records, None) if preprocessed_records else
-        ([], f'No valid alternative alleles for record: {record}')
-    )
+    return preprocessed_records, None
 
 
 def postprocess(dist_var: int, mask: bool, ref: str, alt: str, gene: str,
