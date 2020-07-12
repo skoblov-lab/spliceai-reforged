@@ -13,7 +13,14 @@ $ pip install --no-cache-dir git+https://github.com/skoblov-lab/spliceai-reforge
 ```
 You can run use `spliceai.py`
 
-## Usage help
+## Usage
+
+Example run with bundled data.
+```
+spliceai.py -r grch37.fna -a grch37 --prediction_batch 128 -i testdata/input.vcf -o testdata/output.vcf 
+```
+
+## Documentation
 
 ```
 Usage: spliceai.py [OPTIONS]
