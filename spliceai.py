@@ -86,12 +86,12 @@ def load_models() -> t.List[Model]:
                    '(an SSD or a RAM-disk), using up to 4 preprocessing '
                    'threads significantly cuts down preprocessing time. '
                    'Defaults to 1.')
-@click.option('--preprocessing_batch', default=10000,
+@click.option('--preprocessing_batch', default=1024,
               type=click.IntRange(1, None, clamp=True),
               help='The number of variant records in a VCF file to process at '
                    'a time. Using larger batches tends to cut down '
                    'preprocessing overhead. It is safe to keep the default '
-                   'value. Defaults to 10000')
+                   'value. Defaults to 1024')
 @click.option('--prediction_batch', default=64,
               type=click.IntRange(1, None, clamp=True),
               help='The batch size to use during inference. This option is '
