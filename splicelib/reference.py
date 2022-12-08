@@ -13,7 +13,7 @@ class Reference:
     """
     Reference assembly and annotation.
     Assembly attributes:
-        assembly - a mapping from chromosome identifiers to chromosome sequences
+        assembly - a mapping from chromosome identifiers to chromosome sequences
         long_chrom - True when reference assembly and annotations use long chromosome
             notation format, e.g. "chr1" instead of "1"
     Annotation attributes:
@@ -41,7 +41,7 @@ class Reference:
             self.genes = annotations['#NAME'].to_numpy()
             self.chroms = annotations['CHROM'].to_numpy()
             self.strands = annotations['STRAND'].to_numpy()
-            self.tx_starts = annotations['TX_START'].to_numpy()
+            self.tx_starts = annotations['TX_START'].to_numpy() + 1
             self.tx_ends = annotations['TX_END'].to_numpy()
             self.exon_starts = [
                 # TODO the +1 here is specific for GENCODE annotations: GENCODE
@@ -66,10 +66,11 @@ class Reference:
                              'chromosome notation format')
         self.long_chrom = asm_has_chrom
         # create annotation indices: one per chromosome;
-        # adding 1 to tx_ends to simulate end-inclusive indexing behaviour
+        # subtracting 1 from tx_starts and adding 1 to tx_ends
+        # to simulate start and end inclusive indexing behaviour
         # during intersection lookups in NCLS;
         # count(0) is there to count indices
-        records = zip(self.chroms, self.tx_starts, self.tx_ends+1, count(0))
+        records = zip(self.chroms, self.tx_starts-1, self.tx_ends+1, count(0))
 
         def extract_intervals(group: t.Iterable[t.Tuple[str, int, int, int]]):
             """
